@@ -33,6 +33,7 @@ contract ElpisStaking is Ownable {
     // Info of each pool.
     struct PoolInfo {
         IBEP20 lpToken; // Address of LP token contract.
+        uint256 lpSupply; // Total number of LP tokens that have been deposited in the pool
         uint256 allocPoint; // How many allocation points assigned to this pool. REWARDs to distribute per block.
         uint256 lastRewardBlock; // Last block number that REWARDs distribution occurs.
         uint256 accRewardsPerShare; // Accumulated per share, times 1e12. See below.
@@ -135,6 +136,7 @@ contract ElpisStaking is Ownable {
         poolInfo.push(
             PoolInfo({
                 lpToken: _lpToken,
+                lpSupply: 0,
                 allocPoint: _allocPoint,
                 lastRewardBlock: lastRewardBlock,
                 accRewardsPerShare: 0
@@ -179,7 +181,7 @@ contract ElpisStaking is Ownable {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][_user];
         uint256 accRewardsPerShare = pool.accRewardsPerShare;
-        uint256 lpSupply = pool.lpToken.balanceOf(address(this));
+        uint256 lpSupply = pool.lpSupply;
         if (block.number > pool.lastRewardBlock && lpSupply != 0) {
             uint256 multiplier =
                 getMultiplier(pool.lastRewardBlock, block.number);
@@ -211,7 +213,7 @@ contract ElpisStaking is Ownable {
         if (block.number <= pool.lastRewardBlock) {
             return;
         }
-        uint256 lpSupply = pool.lpToken.balanceOf(address(this));
+        uint256 lpSupply = pool.lpSupply;
         if (lpSupply == 0) {
             pool.lastRewardBlock = block.number;
             return;
@@ -262,6 +264,7 @@ contract ElpisStaking is Ownable {
             }
 
             user.amount = user.amount.add(additionalAmount);
+            pool.lpSupply = pool.lpSupply.add(additionalAmount);
             pool.lpToken.safeTransferFrom(
                 address(msg.sender),
                 address(this),
@@ -290,6 +293,7 @@ contract ElpisStaking is Ownable {
         }
         if (_amount > 0) {
             user.amount = user.amount.sub(_amount);
+            pool.lpSupply = pool.lpSupply.sub(_amount);
             pool.lpToken.safeTransfer(address(msg.sender), _amount);
         }
         user.rewardDebt = user.amount.mul(pool.accRewardsPerShare).div(

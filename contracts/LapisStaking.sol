@@ -4,7 +4,6 @@ pragma solidity 0.6.12;
 
 import "./libs/math/SafeMath.sol";
 import "./libs/token/BEP20/IBEP20.sol";
-import "./libs/token/BEP20/BEP20.sol";
 import "./libs/token/BEP20/SafeBEP20.sol";
 import "./libs/access/Ownable.sol";
 
@@ -12,7 +11,7 @@ import "./interfaces/ITicket.sol";
 
 contract LapisStaking is Ownable {
     using SafeMath for uint256;
-    using SafeBEP20 for BEP20;
+    using SafeBEP20 for IBEP20;
 
     // Info of each user.
     struct UserInfo {
@@ -33,7 +32,8 @@ contract LapisStaking is Ownable {
 
     // Info of each pool.
     struct PoolInfo {
-        BEP20 lpToken; // Address of LP token contract.
+        IBEP20 lpToken; // Address of LP token contract.
+        uint256 lpSupply; // Total number of LP tokens that have been deposited in the pool
         uint256 decimals; // How many decimal places the lpToken has
         uint256 lapisPerDay; // LAPISs created per day
         uint256 lastRewardBlock; // Last block number that LAPISs distribution occurs.
@@ -140,7 +140,7 @@ contract LapisStaking is Ownable {
 
     // Add a new lp to the pool. Can only be called by the owner.
     // XXX DO NOT add the same LP token more than once. Rewards will be messed up if you do.
-    function add(uint256 _lapisPerDay, BEP20 _lpToken) external onlyOwner {
+    function add(uint256 _lapisPerDay, IBEP20 _lpToken) external onlyOwner {
         require(
             uiniqueLpFarming[address(_lpToken)] == false,
             "add: lp farming already exists"
@@ -152,6 +152,7 @@ contract LapisStaking is Ownable {
         poolInfo.push(
             PoolInfo({
                 lpToken: _lpToken,
+                lpSupply: 0,
                 decimals: _decimals,
                 lapisPerDay: _lapisPerDay,
                 lastRewardBlock: lastRewardBlock,
@@ -191,7 +192,7 @@ contract LapisStaking is Ownable {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][_user];
         uint256 accLapisPerToken = pool.accLapisPerToken;
-        uint256 lpSupply = pool.lpToken.balanceOf(address(this));
+        uint256 lpSupply = pool.lpSupply;
         if (block.number > pool.lastRewardBlock && lpSupply != 0) {
             uint256 multiplier =
                 getMultiplier(pool.lastRewardBlock, block.number);
@@ -224,7 +225,7 @@ contract LapisStaking is Ownable {
         if (block.number <= pool.lastRewardBlock) {
             return;
         }
-        uint256 lpSupply = pool.lpToken.balanceOf(address(this));
+        uint256 lpSupply = pool.lpSupply;
         if (lpSupply == 0) {
             pool.lastRewardBlock = block.number;
             return;
@@ -260,6 +261,7 @@ contract LapisStaking is Ownable {
         }
         if (_amount > 0) {
             user.amount = user.amount.add(_amount);
+            pool.lpSupply = pool.lpSupply.add(_amount);
             pool.lpToken.safeTransferFrom(
                 address(msg.sender),
                 address(this),
@@ -286,6 +288,7 @@ contract LapisStaking is Ownable {
         }
         if (_amount > 0) {
             user.amount = user.amount.sub(_amount);
+            pool.lpSupply = pool.lpSupply.sub(_amount);
             pool.lpToken.safeTransfer(address(msg.sender), _amount);
         }
         user.rewardDebt = user.amount.mul(pool.accLapisPerToken).div(PRECISION);

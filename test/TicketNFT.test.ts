@@ -53,6 +53,16 @@ describe("TicketNFT", function () {
     )
   })
 
+  it("should only get the price of an already existing token", async function () {
+    //create a ticket
+    await this.ticket.createTicket("1000", "1");
+    expect((await this.ticket.getTicketInfo("1"))[0]).to.be.eq("1")
+    expect((await this.ticket.getTicketInfo("1"))[1]).to.be.eq("1000")
+    expect((await this.ticket.getTicketInfo("1"))[2]).to.be.eq("COMMON")
+
+    await expect(this.ticket.getTicketInfo("2")).to.be.revertedWith("TicketNFT: ticket does not exist")
+  });
+
   it("should mint ticket correctly", async function () {
     await this.ticket.createTicket("1000", "1")
     expect(await this.ticket.mint(this.bob.address, 1, "200"))
@@ -73,15 +83,5 @@ describe("TicketNFT", function () {
     await this.ticket.createTicket("1000", "1")
     expect(await this.ticket.updateTicket(1, "200", 1))
     await expect(this.ticket.updateTicket(2, "200", 1)).to.be.revertedWith("TicketNFT: ticket does not exist")
-  })
-
-  it("should pause/unpause correctly", async function () {
-    expect(await this.ticket.pause())
-    expect(await this.ticket.paused(), "true")
-    await expect(this.ticket.connect(this.bob).pause({ from: this.bob.address })).to.be.revertedWith("TicketNFT: caller is not pauser")
-
-    expect(await this.ticket.unpause())
-    expect(await this.ticket.paused(), "false")
-    await expect(this.ticket.connect(this.bob).unpause({ from: this.bob.address })).to.be.revertedWith("TicketNFT: caller is not pauser")
   })
 })

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity 0.6.12;
 
 import "./libs/access/AccessControl.sol";
@@ -28,7 +28,6 @@ contract TicketNFT is Context, AccessControl, ERC1155Burnable, ERC1155Pausable {
     using Counters for Counters.Counter;
 
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
     struct TicketInfo {
         uint256 tokenId;
@@ -60,8 +59,6 @@ contract TicketNFT is Context, AccessControl, ERC1155Burnable, ERC1155Pausable {
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
         _setupRole(MINTER_ROLE, _msgSender());
-
-        _setupRole(PAUSER_ROLE, _msgSender());
 
         // token id start from 1
         _idTracker.increment();
@@ -110,17 +107,10 @@ contract TicketNFT is Context, AccessControl, ERC1155Burnable, ERC1155Pausable {
         );
         _;
     }
-
-    modifier onlyPauser {
-        require(
-            hasRole(PAUSER_ROLE, _msgSender()),
-            "TicketNFT: caller is not pauser"
-        );
-        _;
-    }
-
+    
     function getTicketInfo(uint256 _tokenId)
         public
+        tokenExists(_tokenId)
         view
         returns (
             uint256,
@@ -211,32 +201,6 @@ contract TicketNFT is Context, AccessControl, ERC1155Burnable, ERC1155Pausable {
         ticket.rarity = _rarity;
 
         emit TicketUpdated(_msgSender(), _tokenId);
-    }
-
-    /**
-     * @dev Pauses all token transfers.
-     *
-     * See {ERC1155Pausable} and {Pausable-_pause}.
-     *
-     * Requirements:
-     *
-     * - the caller must have the `PAUSER_ROLE`.
-     */
-    function pause() public virtual onlyPauser {
-        _pause();
-    }
-
-    /**
-     * @dev Unpauses all token transfers.
-     *
-     * See {ERC1155Pausable} and {Pausable-_unpause}.
-     *
-     * Requirements:
-     *
-     * - the caller must have the `PAUSER_ROLE`.
-     */
-    function unpause() public virtual onlyPauser {
-        _unpause();
     }
 
     function _beforeTokenTransfer(
